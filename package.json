@@ -1,0 +1,22 @@
+{
+  "name": "nodejs_study",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dataTypes.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kimsangyeon/10-Days-of-Javascript.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kimsangyeon/10-Days-of-Javascript/issues"
+  },
+  "homepage": "https://github.com/kimsangyeon/10-Days-of-Javascript#readme",
+  "dependencies": {
+    "express": "^4.16.3"
+  }
+}
