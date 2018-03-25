@@ -5,7 +5,11 @@
  */
 var express = require('express');
 var app = express();
+var http = require('http');
+var fs = require('fs');
 
+// client page에서 불러올때 사용할 경로, js파일이 있는 실제 경로
+app.use('/script', express.static(__dirname + '/script'));
 
 /**
  * 라우트 지정
@@ -15,7 +19,14 @@ var app = express();
  * 주소값이 주소창에 드러나도 상관없을 때에는 get을 쓰고 드러나지 말아야할 때에는 post를 사용함
  */
 app.get('/', function(req, res) {
-    res.send('Hello World');
+    fs.readFile('./views/index.html', function (err, data) {
+        if (err) {
+            console.log(err);
+        } else {
+            res.writeHead(200, {'Content-Type': 'text/html'});
+            res.end(data);
+        }
+    });
 });
 
 /**

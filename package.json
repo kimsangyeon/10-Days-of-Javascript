@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/kimsangyeon/10-Days-of-Javascript#readme",
   "dependencies": {
+    "ejs": "^2.5.7",
     "express": "^4.16.3"
   }
 }
