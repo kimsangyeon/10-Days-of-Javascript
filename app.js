@@ -1,3 +1,11 @@
+/**
+ * 익스프레스 설정 파일이 담겨있는 핵심 코드입니다.
+ * morgan: 클라이언트의 HTTP 요청 정보를 로깅하기 위한 모듈
+ * body-parser: 클라이언트의 HTTP 요청 중 POST 요청의 바디 데이터에 접근하기 위한 모듈
+ * cookie-parser: 접속한 클라이언트의 쿠키 정보에 접근하기 위한 모듈
+ * express.static(): 정적 파일 호스팅을 위한 경로 설정
+ * app.use('/', routes): 라우팅 설정. 세부 라우팅은 /routes 폴더에 구현됨
+ */
 
 /**
  * 모듈 import
@@ -5,7 +13,6 @@
  */
 var express = require('express');
 var app = express();
-var http = require('http');
 var fs = require('fs');
 var multer = require('multer');
 var upload = multer({dest: __dirname + '/upload/'});
@@ -18,10 +25,14 @@ app.use('/', express.static(__dirname + '/upload'));
 /**
  * 라우트 지정
  * url 구성
- * ex) 사용자가 어떤 메뉴를 클릭했을시 해당하는 화면을 브라우저에 출력s
+ * ex) 사용자가 어떤 메뉴를 클릭했을시 해당하는 화면을 브라우저에 출력
  * 어떤 주소가 요청되어져왔을 때 html 문서 파일을 응답 (라우팅)
  * 주소값이 주소창에 드러나도 상관없을 때에는 get을 쓰고 드러나지 말아야할 때에는 post를 사용함
  */
+
+// express api 앤드포인트 미들웨어 관리측면에서 router사용이 더 나은방법이라고한다.
+// 하지만 express js 문제접은 express 메인 app객체를 사용하지 말아야하는 이유에 대해 정확한 이유가 없다.
+// 응용프로그램 관리 측면에서 기능 등의 사용 분리가 필요 (구성, 템플릿, 데이터베이스 연결 등)
 app.get('/', function(req, res) {
     fs.readFile('index.html', function (err, data) {
         if (err) {
@@ -33,6 +44,10 @@ app.get('/', function(req, res) {
     });
 });
 
+/**
+ * uploadImage 요청받음
+ * upload.single: multer 미들웨어, uploadImage에서 file로 넘어온 인자를 지정한 디렉토리에 upload 한다.
+ */
 app.post('/uploadImage', upload.single('imageFile'), function(req, res) {
     const imageFile = req.file;
     const fileName = imageFile.filename;
