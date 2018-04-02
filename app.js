@@ -16,7 +16,7 @@ const API_SERVER = 'http://synapeditor.iptime.org:3000';
 var express = require('express');
 var app = express();
 var fs = require('fs');
-var zip = require('node-zip');
+var zip = new require('node-zip')();
 var multer = require('multer');
 var upload = multer({dest: __dirname + '/upload/'});
 var docUpload = multer({dest: __dirname + '/document/'});
@@ -25,6 +25,7 @@ var docUpload = multer({dest: __dirname + '/document/'});
 app.use('/', express.static(__dirname + '/script'));
 app.use('/', express.static(__dirname + '/views'));
 app.use('/', express.static(__dirname + '/upload'));
+app.use('/', express.static(__dirname + '/document'));
 
 /**
  * 라우트 지정
@@ -71,16 +72,14 @@ app.post('/getSerializedPbData', docUpload.single('docFile'), function(req, res)
     const fileName = docFile.filename;
     const extension = docFile.originalname.split('.')[1];
 
-    const zipFile = '/document/zip/' + fileName + '.zip';
+    const zipFile = '/document/zip/' + fileName;
     const unzipFile = '/document/' + fileName;
 
-    app.post({
-        url: convertURL,
-        formData: {
-            file: fs.createReadStream(filePath),
-            ext: extension
-        }
-    });
+    zip.file(fileName, fs.readFileSync(filePath));
+    var data = zip.generate({base64:false, compression:'DEFLATE'});
+    fs.writeFileSync(filePath, data, 'binary');
+
+    console.log(data);
 });
 
 
