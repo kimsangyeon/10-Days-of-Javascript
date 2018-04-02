@@ -7,6 +7,8 @@
  * app.use('/', routes): 라우팅 설정. 세부 라우팅은 /routes 폴더에 구현됨
  */
 
+const API_SERVER = 'http://synapeditor.iptime.org:3000';
+
 /**
  * 모듈 import
  * express 프레임 워크를 파일에 include
@@ -14,8 +16,10 @@
 var express = require('express');
 var app = express();
 var fs = require('fs');
+var zip = require('node-zip');
 var multer = require('multer');
 var upload = multer({dest: __dirname + '/upload/'});
+var docUpload = multer({dest: __dirname + '/document/'});
 
 // client page에서 불러올때 사용할 경로, js파일이 있는 실제 경로
 app.use('/', express.static(__dirname + '/script'));
@@ -57,6 +61,25 @@ app.post('/uploadImage', upload.single('imageFile'), function(req, res) {
     fs.renameSync(filePath + '', filePath + '.' + extension);
     res.json({
         uploadPath: fileName + '.' + extension
+    });
+});
+
+app.post('/getSerializedPbData', docUpload.single('docFile'), function(req, res) {
+    const convertURL = API_SERVER + '/convertToPb';
+    const docFile = req.file;
+    const filePath = docFile.path;
+    const fileName = docFile.filename;
+    const extension = docFile.originalname.split('.')[1];
+
+    const zipFile = '/document/zip/' + fileName + '.zip';
+    const unzipFile = '/document/' + fileName;
+
+    app.post({
+        url: convertURL,
+        formData: {
+            file: fs.createReadStream(filePath),
+            ext: extension
+        }
     });
 });
 
