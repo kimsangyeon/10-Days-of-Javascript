@@ -14,7 +14,8 @@
 const express = require('express');
 const app = express();
 const fs = require('fs');
-const zip = new require('node-zip')();
+const zlib = require('zlib');
+const unzip = require('unzip-stream');
 const multer = require('multer');
 const upload = multer({dest: __dirname + '/upload/'});
 const docUpload = multer({dest: __dirname + '/document/'});
@@ -66,11 +67,21 @@ app.post('/uploadImage', upload.single('imageFile'), (req, res) => {
 
 const DOC_FILE_PATH = './document/nodejsTestFile.ndoc';
 const ZIP_FILE_PATH = './document/zip/document.pb.zip';
+const UNZIP_FILE_PATH = './document/pb/document.pb';
+const OSITION_OF_MAGIC_NUMBER_POSITION = 2;
 const buf = new Buffer(4);
 
 app.post('/getSerializedPbData', docUpload.single('docFile'), (req, res) => {
-    fs.createReadStream(DOC_FILE_PATH).pipe(fs.createWriteStream(ZIP_FILE_PATH)).on('finish', () => {
+    const rs = fs.createReadStream(DOC_FILE_PATH);
+    const ws = fs.createWriteStream(ZIP_FILE_PATH);
+    rs.pipe(ws).on('finish', () => {
         console.log('ndoc file zip success!');
+
+        // fs.createReadStream(ZIP_FILE_PATH).pipe(unzip.Extract({
+        //     path: UNZIP_FILE_PATH
+        // })).on('finish', () => {
+        //     console.log('unzip success!');
+        // });
     });
 });
 
