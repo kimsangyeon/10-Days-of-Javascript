@@ -9,24 +9,45 @@
     <script type="text/javascript" src="synapeditor.js"></script>
 </head>
 
-<body>
-    <form enctype="multipart/form-data" action="getSerializedPbData" method="POST" id="upload_form">
-        <input type="hidden" name="MAX_FILE_SIZE" value="300000" />
-        <input type="file" name='docFile' id="upload_file" />
-        <input type="submit" value="파일 전송" />
-    </form>
+<body onload="initEditor();">
     <div id="synapEditor" class="container" style="max-width:800px"></div>
     <script>
-        new SynapEditor('synapEditor');
-        var form = document.getElementById("upload_form");
+        function initEditor() {
+            new SynapEditor('synapEditor');
+            const url = '/getSerializedPbData';
 
-        form.onsubmit = function() {
-            var formData = new FormData(form);
+            fileLoad(url, JSON.stringify({
+                id: null
+            }), setModel);
+        }
+
+        var fileLoad = function (url, param, callback) {
             var xhr = new XMLHttpRequest();
-            xhr.open("POST" , form.getAttribute("action"), true);
-            xhr.send(formData);
+            xhr.onload = function () {
+                if (xhr.status === 200 || xhr.status === 201) {
+                    if (!!xhr.responseText) {
+                        var json = JSON.parse(xhr.responseText);
+                        callback(json);
+                    }
+                } else {
+                    console.error(xhr.statusText);
+                }
+            }
+            xhr.open('POST', url);
+            xhr.setRequestHeader("Content-type", "application/json");
+            xhr.send(param);
+        }
+        var setModel = function (jsonData) {
+            var modelData = jsonData && jsonData.serializedData;
+            var importPath = jsonData && jsonData.importPath;
+            var publishingData = jsonData && jsonData.document && jsonData.document.html;
+            var title = jsonData && jsonData.document && jsonData.document.title;
+            if (title) {
+                document.getElementById('docName').disabled = true;
+                document.getElementById('docName').setAttribute('value', title);
+            }
 
-            return false;
+            window.editor.initSEModel(modelData, importPath, publishingData);
         }
     </script>
 </body>

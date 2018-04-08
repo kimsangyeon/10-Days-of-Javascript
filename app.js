@@ -7,25 +7,24 @@
  * app.use('/', routes): 라우팅 설정. 세부 라우팅은 /routes 폴더에 구현됨
  */
 
-const API_SERVER = 'http://synapeditor.iptime.org:3000';
-
 /**
  * 모듈 import
  * express 프레임 워크를 파일에 include
  */
-var express = require('express');
-var app = express();
-var fs = require('fs');
-var zip = new require('node-zip')();
-var multer = require('multer');
-var upload = multer({dest: __dirname + '/upload/'});
-var docUpload = multer({dest: __dirname + '/document/'});
+const express = require('express');
+const app = express();
+const fs = require('fs');
+const zip = new require('node-zip')();
+const multer = require('multer');
+const upload = multer({dest: __dirname + '/upload/'});
+const docUpload = multer({dest: __dirname + '/document/'});
 
 // client page에서 불러올때 사용할 경로, js파일이 있는 실제 경로
 app.use('/', express.static(__dirname + '/script'));
 app.use('/', express.static(__dirname + '/views'));
 app.use('/', express.static(__dirname + '/upload'));
 app.use('/', express.static(__dirname + '/document'));
+
 
 /**
  * 라우트 지정
@@ -38,8 +37,8 @@ app.use('/', express.static(__dirname + '/document'));
 // express api 앤드포인트 미들웨어 관리측면에서 router사용이 더 나은방법이라고한다.
 // 하지만 express js 문제접은 express 메인 app객체를 사용하지 말아야하는 이유에 대해 정확한 이유가 없다.
 // 응용프로그램 관리 측면에서 기능 등의 사용 분리가 필요 (구성, 템플릿, 데이터베이스 연결 등)
-app.get('/', function(req, res) {
-    fs.readFile('index.html', function (err, data) {
+app.get('/', (req, res) => {
+    fs.readFile('index.html', (err, data) => {
         if (err) {
             console.log(err);
         } else {
@@ -53,7 +52,7 @@ app.get('/', function(req, res) {
  * uploadImage 요청받음
  * upload.single: multer 미들웨어, uploadImage에서 file로 넘어온 인자를 지정한 디렉토리에 upload 한다.
  */
-app.post('/uploadImage', upload.single('imageFile'), function(req, res) {
+app.post('/uploadImage', upload.single('imageFile'), (req, res) => {
     const imageFile = req.file;
     const fileName = imageFile.filename;
     const filePath = imageFile.path;
@@ -65,21 +64,14 @@ app.post('/uploadImage', upload.single('imageFile'), function(req, res) {
     });
 });
 
-app.post('/getSerializedPbData', docUpload.single('docFile'), function(req, res) {
-    const convertURL = API_SERVER + '/convertToPb';
-    const docFile = req.file;
-    const filePath = docFile.path;
-    const fileName = docFile.filename;
-    const extension = docFile.originalname.split('.')[1];
+const DOC_FILE_PATH = './document/nodejsTestFile.ndoc';
+const ZIP_FILE_PATH = './document/zip/document.pb.zip';
+const buf = new Buffer(4);
 
-    const zipFile = '/document/zip/' + fileName;
-    const unzipFile = '/document/' + fileName;
-
-    zip.file(fileName, fs.readFileSync(filePath));
-    var data = zip.generate({base64:false, compression:'DEFLATE'});
-    fs.writeFileSync(filePath, data, 'binary');
-
-    console.log(data);
+app.post('/getSerializedPbData', docUpload.single('docFile'), (req, res) => {
+    fs.createReadStream(DOC_FILE_PATH).pipe(fs.createWriteStream(ZIP_FILE_PATH)).on('finish', () => {
+        console.log('ndoc file zip success!');
+    });
 });
 
 
