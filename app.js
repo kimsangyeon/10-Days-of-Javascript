@@ -77,6 +77,15 @@ app.post('/getSerializedPbData', docUpload.single('docFile'), (req, res) => {
     rs.pipe(ws).on('finish', () => {
         console.log('ndoc file zip success!');
 
+        fs.open(ZIP_FILE_PATH, 'r', (err, fd) => {
+            if (err) {
+                console.log(err);
+            }
+            fs.read(fd, buf, 0, buf.length, OSITION_OF_MAGIC_NUMBER_POSITION, (err, bytesRead, buffer) => {
+                var data = buffer.toString("utf8");
+                console.log(data);
+            });
+        });
         // fs.createReadStream(ZIP_FILE_PATH).pipe(unzip.Extract({
         //     path: UNZIP_FILE_PATH
         // })).on('finish', () => {
