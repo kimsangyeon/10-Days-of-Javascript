@@ -67,30 +67,85 @@ app.post('/uploadImage', upload.single('imageFile'), (req, res) => {
 
 const DOC_FILE_PATH = './document/nodejsTestFile.ndoc';
 const ZIP_FILE_PATH = './document/zip/document.pb.zip';
-const UNZIP_FILE_PATH = './document/pb/document.pb';
+const UNZIP_FILE_PATH = './document/pb';
 const OSITION_OF_MAGIC_NUMBER_POSITION = 2;
 const buf = new Buffer(4);
 
+// docFile getSerialize pb Data 구하기
 app.post('/getSerializedPbData', docUpload.single('docFile'), (req, res) => {
+    // file copy
     const rs = fs.createReadStream(DOC_FILE_PATH);
     const ws = fs.createWriteStream(ZIP_FILE_PATH);
+
     rs.pipe(ws).on('finish', () => {
         console.log('ndoc file zip success!');
 
-        fs.open(ZIP_FILE_PATH, 'r', (err, fd) => {
+        // copy 된 zip file open ('r+') : read write
+        fs.open(ZIP_FILE_PATH, 'r+', (err, fd) => {
             if (err) {
                 console.log(err);
+                return;
             }
-            fs.read(fd, buf, 0, buf.length, OSITION_OF_MAGIC_NUMBER_POSITION, (err, bytesRead, buffer) => {
-                var data = buffer.toString("utf8");
-                console.log(data);
+            fs.read(fd, buf, 0, 1, OSITION_OF_MAGIC_NUMBER_POSITION, (err, bytesRead, buffer) => {
+                const magicNumberPos = buffer[0];
+                fs.read(fd, buf, 0 , 1, magicNumberPos, (err, bytesRead, buffer) => {
+                    if (err) {
+                        console.log(err);
+                        return;
+                    }
+                    const magicNumber = buffer[0];
+                    const zipHeader = new Buffer(4);
+                    zipHeader[0] = 'P'.charCodeAt();
+                    zipHeader[1] = 'K'.charCodeAt();
+                    zipHeader[2] = 0x03;
+                    zipHeader[3] = 0x04;
+
+                    fs.write(fd, zipHeader, 0, 4, 0, (err, bytesWriten, buffer) => {
+                        if (err) {
+                            console.log(err);
+                            return;
+                        }
+                        const fileBuf = new Buffer(60);
+
+                        fs.read(fd, fileBuf, 0, 60, 4, (err, bytesRead, buffer) => {
+                            if (err) {
+                                console.log(err);
+                                return;
+                            }
+                            for (var i = 0; i < buffer.length; i++) {
+                                buffer[i] =  buffer[i] ^ magicNumber;
+                            }
+
+                            fs.write(fd, buffer, 0, 60, 4, (err, bytesWriten, buffer) => {
+                                if (err) {
+                                    console.log(err);
+                                    return;
+                                }
+                                fs.createReadStream(ZIP_FILE_PATH).pipe(unzip.Extract({
+                                    path: UNZIP_FILE_PATH
+                                })).on('close', () => {
+                                    console.log('unzip success!');
+                                    const serializedData = [];
+
+                                    fs.createReadStream(UNZIP_FILE_PATH + '/document.word.pb', {
+                                        start: 16
+                                    }).pipe(zlib.createUnzip()).on('data', (data) => {
+                                        for (let i = 0, len = data.length; i < len; i++) {
+                                            serializedData.push(data[i] & 0xFF);
+                                        }
+                                    }).on('close', () => {
+                                        console.log('[controller.js] Successful Serialize!');
+                                        res.json({
+                                            serializedData: serializedData
+                                        });
+                                    });
+                                });
+                            });
+                        });
+                    });
+                });
             });
         });
-        // fs.createReadStream(ZIP_FILE_PATH).pipe(unzip.Extract({
-        //     path: UNZIP_FILE_PATH
-        // })).on('finish', () => {
-        //     console.log('unzip success!');
-        // });
     });
 });
 

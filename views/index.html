@@ -13,7 +13,7 @@
     <div id="synapEditor" class="container" style="max-width:800px"></div>
     <script>
         function initEditor() {
-            new SynapEditor('synapEditor');
+            window.editor = new SynapEditor('synapEditor');
             const url = '/getSerializedPbData';
 
             fileLoad(url, JSON.stringify({
@@ -39,15 +39,15 @@
         }
         var setModel = function (jsonData) {
             var modelData = jsonData && jsonData.serializedData;
-            var importPath = jsonData && jsonData.importPath;
-            var publishingData = jsonData && jsonData.document && jsonData.document.html;
+//            var importPath = jsonData && jsonData.importPath;
+//            var publishingData = jsonData && jsonData.document && jsonData.document.html;
             var title = jsonData && jsonData.document && jsonData.document.title;
             if (title) {
                 document.getElementById('docName').disabled = true;
                 document.getElementById('docName').setAttribute('value', title);
             }
 
-            window.editor.initSEModel(modelData, importPath, publishingData);
+            window.editor.initSEModel(modelData, '', null);
         }
     </script>
 </body>
