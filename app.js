@@ -86,64 +86,107 @@ app.post('/getSerializedPbData', docUpload.single('docFile'), (req, res) => {
                 console.log(err);
                 return;
             }
-            fs.read(fd, buf, 0, 1, OSITION_OF_MAGIC_NUMBER_POSITION, (err, bytesRead, buffer) => {
-                const magicNumberPos = buffer[0];
+
+            // magicNuber position 읽어오기
+            let magicNumberPos = null;
+            const readMagicNumberPosition = () => new Promise((resolve) => {
+                fs.read(fd, buf, 0, 1, OSITION_OF_MAGIC_NUMBER_POSITION, (err, bytesRead, buffer) => {
+                    resolve(buffer[0]);
+                });
+            });
+
+            // magicNumber 읽어오기
+            let magicNumber = null;
+            const readMagicNumber = (magicNumberPos) => new Promise((resolve) => {
                 fs.read(fd, buf, 0 , 1, magicNumberPos, (err, bytesRead, buffer) => {
                     if (err) {
                         console.log(err);
                         return;
                     }
-                    const magicNumber = buffer[0];
-                    const zipHeader = new Buffer(4);
-                    zipHeader[0] = 'P'.charCodeAt();
-                    zipHeader[1] = 'K'.charCodeAt();
-                    zipHeader[2] = 0x03;
-                    zipHeader[3] = 0x04;
 
-                    fs.write(fd, zipHeader, 0, 4, 0, (err, bytesWriten, buffer) => {
-                        if (err) {
-                            console.log(err);
-                            return;
+                    resolve(buffer[0]);
+                });
+            });
+
+            // file ZipHeader 변경
+            const zipHeader = new Buffer(4);
+            zipHeader[0] = 'P'.charCodeAt();
+            zipHeader[1] = 'K'.charCodeAt();
+            zipHeader[2] = 0x03;
+            zipHeader[3] = 0x04;
+            const writeZipHeader = (zipHeader) => new Promise((resolve) => {
+                fs.write(fd, zipHeader, 0, 4, 0, (err, bytesWriten, buffer) => {
+                    if (err) {
+                        console.log(err);
+                        return;
+                    }
+                    resolve();
+                });
+            });
+
+            // file 60byte 읽어오기
+            const fileBuffer = new Buffer(60);
+            const readFile = (fileBuffer) => new Promise((resolve) => {
+                fs.read(fd, fileBuffer, 0, 60, 4, (err, bytesRead, buffer) => {
+                    if (err) {
+                        console.log(err);
+                        return;
+                    }
+                    for (var i = 0; i < buffer.length; i++) {
+                        buffer[i] = buffer[i] ^ magicNumber;
+                    }
+                    resolve(buffer);
+                });
+            });
+
+            // file 60byte 쓰기
+            const writeFile = (buffer) => new Promise((resolve) => {
+                fs.write(fd, buffer, 0, 60, 4, (err, bytesWriten, buffer) => {
+                    if (err) {
+                        console.log(err);
+                        return;
+                    }
+                    resolve();
+                });
+            });
+
+            // file 압축 해제
+            const unZipFile = () => new Promise((resolve) => {
+                fs.createReadStream(ZIP_FILE_PATH).pipe(unzip.Extract({
+                    path: UNZIP_FILE_PATH
+                })).on('close', () => {
+                    console.log('unzip success!');
+                    const serializedData = [];
+
+                    fs.createReadStream(UNZIP_FILE_PATH + '/document.word.pb', {
+                        start: 16
+                    }).pipe(zlib.createUnzip()).on('data', (data) => {
+                        for (let i = 0, len = data.length; i < len; i++) {
+                            serializedData.push(data[i] & 0xFF);
                         }
-                        const fileBuf = new Buffer(60);
-
-                        fs.read(fd, fileBuf, 0, 60, 4, (err, bytesRead, buffer) => {
-                            if (err) {
-                                console.log(err);
-                                return;
-                            }
-                            for (var i = 0; i < buffer.length; i++) {
-                                buffer[i] =  buffer[i] ^ magicNumber;
-                            }
-
-                            fs.write(fd, buffer, 0, 60, 4, (err, bytesWriten, buffer) => {
-                                if (err) {
-                                    console.log(err);
-                                    return;
-                                }
-                                fs.createReadStream(ZIP_FILE_PATH).pipe(unzip.Extract({
-                                    path: UNZIP_FILE_PATH
-                                })).on('close', () => {
-                                    console.log('unzip success!');
-                                    const serializedData = [];
-
-                                    fs.createReadStream(UNZIP_FILE_PATH + '/document.word.pb', {
-                                        start: 16
-                                    }).pipe(zlib.createUnzip()).on('data', (data) => {
-                                        for (let i = 0, len = data.length; i < len; i++) {
-                                            serializedData.push(data[i] & 0xFF);
-                                        }
-                                    }).on('close', () => {
-                                        console.log('[controller.js] Successful Serialize!');
-                                        res.json({
-                                            serializedData: serializedData
-                                        });
-                                    });
-                                });
-                            });
+                    }).on('close', () => {
+                        console.log('[controller.js] Successful Serialize!');
+                        res.json({
+                            serializedData: serializedData
                         });
+
+                        resolve();
                     });
                 });
+            });
+
+            readMagicNumberPosition().then((data) => {
+                magicNumberPos = data;
+                return readMagicNumber(magicNumberPos);
+            }).then((data) => {
+                magicNumber = data;
+                return writeZipHeader(zipHeader);
+            }).then(() => {
+                return readFile(fileBuffer);
+            }).then((data) => {
+                return writeFile(data);
+            }).then(() => {
+                return unZipFile();
             });
         });
     });
