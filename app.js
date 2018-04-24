@@ -73,7 +73,7 @@ const UNZIP_FILE_PATH = './document/pb';
 const OSITION_OF_MAGIC_NUMBER_POSITION = 2;
 const buf = new Buffer(4);
 
-const CONVERT_SERVER = 'http://synapeditor.iptime.org:7419/convertNdoc';
+const CONVERT_SERVER = '';
 
 // docFile getSerialize pb Data 구하기
 app.post('/getSerializedPbData', docUpload.single('docFile'), (req, res) => {
