@@ -68,150 +68,30 @@ app.post('/uploadImage', upload.single('imageFile'), (req, res) => {
 });
 
 const DOC_FILE_PATH = './document/nodejsTestFile.docx';
-const ZIP_FILE_PATH = './document/zip/document.pb.zip';
-const UNZIP_FILE_PATH = './document/pb';
-const OSITION_OF_MAGIC_NUMBER_POSITION = 2;
-const buf = new Buffer(4);
-
-const CONVERT_SERVER = '';
+const CONVERT_SERVER = 'http://synapeditor.iptime.org:7419/convertNdoc';
 
 // docFile getSerialize pb Data 구하기
 app.post('/getSerializedPbData', docUpload.single('docFile'), (req, res) => {
     // file copy
-    const getNdocFile = () => new Promise((resolve) => {
+    const serializedData = [];
+    const convertDocToPbData = () => {
         request.post({
             url: CONVERT_SERVER,
             formData: {
                 file: fs.createReadStream(DOC_FILE_PATH)
             }
-        }).pipe(fs.createWriteStream(ZIP_FILE_PATH)).on('finish', () => {
-            console.log('ndoc file zip success!');
-            resolve();
+        }).on('data', (data) => {
+            data.forEach(data => serializedData.push(data));
+        }).on('end', () => {
+            res.json({serializedData: serializedData});
         });
-    });
+    };
 
-    let fileDescriptor = null;
-    const openFile = () => new Promise((resolve) => {
-        // copy 된 zip file open ('r+') : read write
-        fs.open(ZIP_FILE_PATH, 'r+', (err, fd) => {
-            if (err) {
-                console.log(err);
-                return;
-            }
-            resolve(fd);
-        });
-    });
-
-    // magicNuber position 읽어오기
-    let magicNumberPos = null;
-    const readMagicNumberPosition = () => new Promise((resolve) => {
-        fs.read(fileDescriptor, buf, 0, 1, OSITION_OF_MAGIC_NUMBER_POSITION, (err, bytesRead, buffer) => {
-            resolve(buffer[0]);
-        });
-    });
-
-    // magicNumber 읽어오기
-    let magicNumber = null;
-    const readMagicNumber = (magicNumberPos) => new Promise((resolve) => {
-        fs.read(fileDescriptor, buf, 0 , 1, magicNumberPos, (err, bytesRead, buffer) => {
-            if (err) {
-                console.log(err);
-                return;
-            }
-
-            resolve(buffer[0]);
-        });
-    });
-
-    // file ZipHeader 변경
-    const zipHeader = new Buffer(4);
-    zipHeader[0] = 'P'.charCodeAt();
-    zipHeader[1] = 'K'.charCodeAt();
-    zipHeader[2] = 0x03;
-    zipHeader[3] = 0x04;
-    const writeZipHeader = (zipHeader) => new Promise((resolve) => {
-        fs.write(fileDescriptor, zipHeader, 0, 4, 0, (err, bytesWriten, buffer) => {
-            if (err) {
-                console.log(err);
-                return;
-            }
-            resolve();
-        });
-    });
-
-    // file 60byte 읽어오기
-    const fileBuffer = new Buffer(60);
-    const readFile = (fileBuffer) => new Promise((resolve) => {
-        fs.read(fileDescriptor, fileBuffer, 0, 60, 4, (err, bytesRead, buffer) => {
-            if (err) {
-                console.log(err);
-                return;
-            }
-            for (var i = 0; i < buffer.length; i++) {
-                buffer[i] = buffer[i] ^ magicNumber;
-            }
-            resolve(buffer);
-        });
-    });
-
-    // file 60byte 쓰기
-    const writeFile = (buffer) => new Promise((resolve) => {
-        fs.write(fileDescriptor, buffer, 0, 60, 4, (err, bytesWriten, buffer) => {
-            if (err) {
-                console.log(err);
-                return;
-            }
-            resolve();
-        });
-    });
-
-    // file 압축 해제
-    const unZipFile = () => new Promise((resolve) => {
-        fs.createReadStream(ZIP_FILE_PATH).pipe(unzip.Extract({
-            path: UNZIP_FILE_PATH
-        })).on('close', () => {
-            console.log('unzip success!');
-            const serializedData = [];
-
-            fs.createReadStream(UNZIP_FILE_PATH + '/document.word.pb', {
-                start: 16
-            }).pipe(zlib.createUnzip()).on('data', (data) => {
-                for (let i = 0, len = data.length; i < len; i++) {
-                    serializedData.push(data[i] & 0xFF);
-                }
-            }).on('close', () => {
-                console.log('[controller.js] Successful Serialize!');
-                res.json({
-                    serializedData: serializedData
-                });
-
-                resolve();
-            });
-        });
-    });
-
-    getNdocFile().then(() => {
-        return openFile();
-    }).then((data) => {
-        fileDescriptor = data;
-        return readMagicNumberPosition();
-    }).then((data) => {
-        magicNumberPos = data;
-        return readMagicNumber(magicNumberPos);
-    }).then((data) => {
-        magicNumber = data;
-        return writeZipHeader(zipHeader);
-    }).then(() => {
-        return readFile(fileBuffer);
-    }).then((data) => {
-        return writeFile(data);
-    }).then(() => {
-        return unZipFile();
-    });
+    convertDocToPbData();
 });
 
 
-/**
+/*
  * 서버 응답 준비
  * 서버가 클라이언트로부터의 요청을 받을 준비가 완료되었을때 콜백 함수 동작
  * 클라이언트는 서버로 요청할 때 서버 ip(퍼블릭) + 포트로 요청 주소
