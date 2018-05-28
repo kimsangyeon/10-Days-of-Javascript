@@ -68,26 +68,55 @@ app.post('/uploadImage', upload.single('imageFile'), (req, res) => {
 });
 
 const DOC_FILE_PATH = './document/nodejsTestFile.docx';
+const ZIP_FILE_PATH = './document/zip/document.pb.zip';
+const UNZIP_FILE_PATH = './document/unzip';
 const CONVERT_SERVER = 'http://synapeditor.iptime.org:7419/convertNdoc';
 
 // docFile getSerialize pb Data 구하기
 app.post('/getSerializedPbData', docUpload.single('docFile'), (req, res) => {
     // file copy
-    const serializedData = [];
-    const convertDocToPbData = () => {
+    let arr = [];
+    const convertDocToPbData = () => new Promise((resolve) => {
         request.post({
             url: CONVERT_SERVER,
             formData: {
                 file: fs.createReadStream(DOC_FILE_PATH)
             }
-        }).on('data', (data) => {
-            data.forEach(data => serializedData.push(data));
-        }).on('end', () => {
-            res.json({serializedData: serializedData});
+        }).pipe(fs.createWriteStream(ZIP_FILE_PATH)).on('close', (err) => {
+            console.log("@@");
+            if (err) {
+                console.log(err);
+                return;
+            }
+            console.log("##");
+            resolve();
         });
-    };
+    });
 
-    convertDocToPbData();
+    // file 압축 해제
+    const unZipFile = () => new Promise((resolve) => {
+        fs.createReadStream(ZIP_FILE_PATH).pipe(unzip.Extract({
+            path: UNZIP_FILE_PATH
+        })).on('close', () => {
+            console.log('unzip success!');
+            const serializedData = [];
+
+            fs.createReadStream(UNZIP_FILE_PATH + '/document.word.pb', {
+                start: 16
+            }).pipe(zlib.createUnzip()).on('data', (data) => {
+                for (let i = 0, len = data.length; i < len; i++) {
+                    serializedData.push(data[i]);
+                }
+            }).on('close', () => {
+                console.log('[controller.js] Successful Serialize!');
+                resolve(serializedData);
+            });
+        });
+    });
+
+    convertDocToPbData().then((data) => {
+        return unZipFile();
+    });
 });
 
 
