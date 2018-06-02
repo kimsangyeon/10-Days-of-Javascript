@@ -71,18 +71,28 @@ const DOC_FILE_PATH = './document/nodejsTestFile.docx';
 const ZIP_FILE_PATH = './document/zip/document.pb.zip';
 const UNZIP_FILE_PATH = './document/unzip';
 const CONVERT_SERVER = 'http://synapeditor.iptime.org:7419/convertNdoc';
+const DOCUMENT_URL_CONVERT_SERVER = 'http://synapeditor.iptime.org:7419/documentUrlConvert';
 
 // docFile getSerialize pb Data 구하기
 app.post('/getSerializedPbData', docUpload.single('docFile'), (req, res) => {
     // file copy
     let arr = [];
-    const convertDocToPbData = () => new Promise((resolve) => {
+    const convertDocToPbData = () => new Promise((resolve, reject) => {
         request.post({
             url: CONVERT_SERVER,
             formData: {
                 file: fs.createReadStream(DOC_FILE_PATH)
             }
-        }).pipe(fs.createWriteStream(ZIP_FILE_PATH)).on('close', (err) => {
+        }).on('data', (data) => {
+            arr.push(data);
+        }).on('end', () => {
+            res.json({serializedData: JSON.parse(Buffer.concat(arr)).serializedData});
+            resolve();
+        });
+
+
+        /*
+        pipe(fs.createWriteStream(ZIP_FILE_PATH)).on('close', (err) => {
             console.log("@@");
             if (err) {
                 console.log(err);
@@ -90,9 +100,10 @@ app.post('/getSerializedPbData', docUpload.single('docFile'), (req, res) => {
             }
             console.log("##");
             resolve();
-        });
+        });*/
     });
 
+    /*
     // file 압축 해제
     const unZipFile = () => new Promise((resolve) => {
         fs.createReadStream(ZIP_FILE_PATH).pipe(unzip.Extract({
@@ -105,7 +116,7 @@ app.post('/getSerializedPbData', docUpload.single('docFile'), (req, res) => {
                 start: 16
             }).pipe(zlib.createUnzip()).on('data', (data) => {
                 for (let i = 0, len = data.length; i < len; i++) {
-                    serializedData.push(data[i]);
+                    serializedData.push(data[i] & 0xFF);
                 }
             }).on('close', () => {
                 console.log('[controller.js] Successful Serialize!');
@@ -114,11 +125,26 @@ app.post('/getSerializedPbData', docUpload.single('docFile'), (req, res) => {
         });
     });
 
-    convertDocToPbData().then((data) => {
+    convertDocToPbData().then(() => {
         return unZipFile();
-    });
+    });*/
+
+    convertDocToPbData();
 });
 
+app.post('/getSerializedPbDataToUrl', (req, res) => {
+    let arr = [];
+    request.post({
+        url: DOCUMENT_URL_CONVERT_SERVER,
+        qs: {
+            downloadUrl: 'https://calibre-ebook.com/downloads/demos/demo.docx'
+        }
+    }).on('data', (data) => {
+        arr.push(data);
+    }).on('end', () => {
+        res.json({serializedData: JSON.parse(Buffer.concat(arr)).serializedData});
+    });
+});
 
 /*
  * 서버 응답 준비
